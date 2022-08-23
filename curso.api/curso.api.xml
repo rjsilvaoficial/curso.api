@@ -4,6 +4,18 @@
         <name>curso.api</name>
     </assembly>
     <members>
+        <member name="M:Controllers.CursoController.Post(Models.Cursos.CursoViewModelInput)">
+            <summary>
+            Inclusão de cursos
+            </summary>
+            <returns></returns>
+        </member>
+        <member name="M:Controllers.CursoController.Get">
+            <summary>
+            Pesquisa de cursos
+            </summary>
+            <returns></returns>
+        </member>
         <member name="M:curso.api.Controllers.UsuarioController.Logar(curso.api.Models.Usuarios.LoginViewModelInput)">
             <summary>
             teste

@@ -8,6 +8,7 @@ namespace curso.api.Models.Usuarios
         public string Login { get; set; }
 
         [Required(ErrorMessage = "Campo Email é obrigatório!")]
+        //[Compare(nameof(Login), ErrorMessage = "Esse campo compara Email e Login e o segundo não pode divergir do primeiro")] 
         public string Email { get; set; }
 
         [Required(ErrorMessage = "Campo Senha é obrigatório!")]

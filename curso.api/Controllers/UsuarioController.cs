@@ -1,8 +1,14 @@
-﻿using curso.api.Filters;
+﻿using Business.Entities;
+using Business.Repositories;
+using Configurations;
+using curso.api.Filters;
 using curso.api.Models;
 using curso.api.Models.Usuarios;
+using Infraestructure.Data;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using Swashbuckle.AspNetCore.Annotations;
 using System;
@@ -13,10 +19,24 @@ using System.Text;
 
 namespace curso.api.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/v1/usuarios")]
     [ApiController]
     public class UsuarioController : ControllerBase
     {
+        private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IConfiguration _configuration;
+        private readonly IAuthenticationService _authenticationService;
+
+        public UsuarioController(
+            IUsuarioRepository usuarioRepository, 
+            IConfiguration configuration,
+            IAuthenticationService authenticationService)
+        {
+            _usuarioRepository = usuarioRepository;
+            _configuration = configuration;
+            _authenticationService = authenticationService;
+        }
+
         /// <summary>
         /// teste
         /// </summary>
@@ -31,7 +51,12 @@ namespace curso.api.Controllers
         [Route("Logar")]
         public IActionResult Logar(LoginViewModelInput loginViewModelInput)
         {
+            var usuario = _usuarioRepository.ObterUsuario(loginViewModelInput.Login);
 
+            if(usuario == null)
+            {
+                return BadRequest("Erro ao tentar acessar!");
+            }
             //if (!ModelState.IsValid)
             //{
             //    return BadRequest(new ValidaCampoViewModelOutput(ModelState.SelectMany(e => e.Value.Errors)
@@ -39,30 +64,12 @@ namespace curso.api.Controllers
             //}
             var usuarioViewModelOutput = new UsuarioViewModelOutput
             {
-                Codigo = 1,
-                Email = "email",
-                Login = "login"
+                Codigo = usuario.Codigo,
+                Login = loginViewModelInput.Login,
+                Email = usuario.Email
             };
 
-            var secret = Encoding.ASCII.GetBytes("94b92de3-e371-48bb-b2d5-e866b51becd1");
-            var symmetricSecurityKey = new SymmetricSecurityKey(secret);
-            var securityTokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(new Claim[]
-                {
-                    new Claim(ClaimTypes.NameIdentifier, usuarioViewModelOutput.Codigo.ToString()),
-                    new Claim(ClaimTypes.Name, usuarioViewModelOutput.Login.ToString()),
-                    new Claim(ClaimTypes.Email, usuarioViewModelOutput.Email.ToString())
-
-                }),
-                Expires = DateTime.UtcNow.AddDays(1), //recomenda-se 1 à 2 horas
-                SigningCredentials = new SigningCredentials(symmetricSecurityKey, SecurityAlgorithms.HmacSha256Signature)
-            };
-            var jwtSecurityTokenHandler = new JwtSecurityTokenHandler();
-            var tokenGenerated = jwtSecurityTokenHandler.CreateToken(securityTokenDescriptor);
-
-            var token = jwtSecurityTokenHandler.WriteToken(tokenGenerated);
-
+            var token = _authenticationService.GerarToken(usuarioViewModelOutput);
 
             return Ok(new
             {
@@ -76,7 +83,26 @@ namespace curso.api.Controllers
         [Route("Registrar")]
         public IActionResult Registrar(RegistrarViewModelInput registrarViewModelInput)
         {
-            return Created("",registrarViewModelInput);
+            //Através de um obj contexto, conseguimos checar pendência de migrações
+            //var migracoesPendentes = contexto.Database.GetPendingMigrations();
+
+            //Com isso podemos também efetivar as migrações pendentes
+            //if(migracoesPendentes.Count() > 0)
+            //{
+            //    contexto.Database.Migrate();
+            //}
+
+            var usuario = new Usuario();
+            usuario.Login = registrarViewModelInput.Login;
+            usuario.Email = registrarViewModelInput.Email;
+            usuario.Senha = registrarViewModelInput.Senha;
+
+            _usuarioRepository.Adicionar(usuario);
+            _usuarioRepository.Commit();
+
+
+
+            return Created("",usuario);
         }
     }
 }

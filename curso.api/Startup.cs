@@ -1,13 +1,19 @@
+using Business.Repositories;
+using Configurations;
+using Infraestructure.Data;
+using Infraestructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,6 +45,34 @@ namespace curso.api
             //Adicionar o swagger
             services.AddSwaggerGen(c =>
             {
+                #region Configurando Botão authorize via token no swagger
+
+                c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+                {
+                    Description = "Jwt Authorization header using the Bearer scheme (Example: 'Bearer 12345abcdef')",
+                    Name = "Authorization",
+                    In = ParameterLocation.Header,
+                    Type = SecuritySchemeType.ApiKey,
+                    Scheme = "Bearer"
+                });
+                c.AddSecurityRequirement(new OpenApiSecurityRequirement
+                {
+                    {
+                        new OpenApiSecurityScheme
+                        {
+                            Reference = new OpenApiReference
+                            {
+                                Type = ReferenceType.SecurityScheme,
+                                Id = "Bearer"
+                            }
+                        },
+                        Array.Empty<string>()
+                    }
+
+                });
+
+                #endregion
+
                 //Obter o nome do arquivo da documentação
                 var xmlFile = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
                 //Obter o caminho onde está o xml da documentação
@@ -66,9 +100,23 @@ namespace curso.api
                 {
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(secret),
-                    ValidateIssuer = false
+                    ValidateIssuer = false,
+                    ValidateAudience = false
                 };
             });
+
+            //var options = new DbContextOptionsBuilder<CursoDbContext>();
+            //options.UseSqlServer("Data Source=DESKTOP-MT5OVJG\\SQLEXPRESS;Initial Catalog=CURSO;Integrated Security=True;Connect Timeout=30;Encrypt=False;TrustServerCertificate=False;ApplicationIntent=ReadWrite;MultiSubnetFailover=False");
+            //CursoDbContext _contexto = new CursoDbContext(options.Options);
+
+            services.AddDbContext<CursoDbContext>(options =>
+            {
+                options.UseSqlServer(Configuration.GetConnectionString("DefaultConnection"));
+
+
+            });
+            services.AddScoped<IUsuarioRepository, UsuarioRepository>();
+            services.AddScoped<IAuthenticationService, JwtService>();
 
 
         }
@@ -87,6 +135,7 @@ namespace curso.api
 
             app.UseAuthentication();
             app.UseAuthorization();
+
 
             app.UseEndpoints(endpoints =>
             {
